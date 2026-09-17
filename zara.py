@@ -1,69 +1,72 @@
-import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Updater
+import os
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
-# உனது பாட் டோக்கன்
-TOKEN = "8607486883:AAEUhuhrHzzNY4-0hyrxgGekiNa70MXVTI4"
+# Telegram API credentials and Bot Token
+API_ID = 6723238
+API_HASH = "9b626456073105574581f3b3d4f40f3b"
+BOT_TOKEN = "8607486883:AAEUhuhrHzzNY4-0hyrxgGekiNa70MXVTI4"
 
-# லாக்கிங் செட்டப்
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+# Pyrogram Client setup
+app = Client(
+    "ZaraBot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
 )
 
-# /start கமெண்ட் மற்றும் கீழே Settings பட்டன்
-def start(update: Update, context: CallbackContext):
-    start_text = (
-        "Hey there! My name is Zara - I'm here to help you manage your groups! "
-        "Use /help to find out how to use me to my full potential.\n\n"
-        "Join my news channel to get information on all the latest updates.\n\n"
-        "Check /privacy to view the privacy policy, and interact with your data."
-    )
-    keyboard = [
-        [InlineKeyboardButton("Add me to your chat!", url=f"https://t.me/{context.bot.username}?startgroup=true")],
-        [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(start_text, reply_markup=reply_markup)
-
-# Settings பட்டனை கையாளுதல்
-def button_callback(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-
-    if query.data == "open_settings":
-        settings_text = "⚙️ **Settings Menu:**\n\n(Filters and other settings will be added here step by step!)"
-        keyboard = [
-            [InlineKeyboardButton("« Back", callback_data="back_to_start")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        query.message.edit_text(settings_text, reply_markup=reply_markup, parse_mode="Markdown")
-
-    elif query.data == "back_to_start":
-        start_text = (
-            "Hey there! My name is Zara - I'm here to help you manage your groups! "
-            "Use /help to find out how to use me to my full potential.\n\n"
-            "Join my news channel to get information on all the latest updates.\n\n"
-            "Check /privacy to view the privacy policy, and interact with your data."
-        )
-        keyboard = [
-            [InlineKeyboardButton("Add me to your chat!", url=f"https://t.me/{context.bot.username}?startgroup=true")],
+# Start command handler
+@app.on_message(filters.command("start"))
+async def start_command(client: Client, message: Message):
+    # Settings button creation
+    keyboard = InlineKeyboardMarkup(
+        [
             [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        query.message.edit_text(start_text, reply_markup=reply_markup)
+    )
+    await message.reply_text(
+        "Hello! I am **Zara**, your personal assistant bot.",
+        reply_markup=keyboard
+    )
 
-def main():
-    updater = Updater(TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
+# Help command handler
+@app.on_message(filters.command("help"))
+async def help_command(client: Client, message: Message):
+    help_text = (
+        "🛠️ **Zara Bot Help Menu**\n\n"
+        "• /start - Start the bot\n"
+        "• /help - Get help details\n"
+    )
+    await message.reply_text(help_text)
 
-    # ஹேண்ட்லர்கள் இணைப்பு
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CallbackQueryHandler(button_callback))
+# Settings button callback handler
+@app.on_callback_query(filters.regex("open_settings"))
+async def settings_menu(client: Client, callback_query: CallbackQuery):
+    back_keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🔙 Back", callback_data="back_to_home")]
+        ]
+    )
+    await callback_query.message.edit_text(
+        "⚙️ **Zara Settings Menu**\n\n"
+        "Here you can manage your bot settings.",
+        reply_markup=back_keyboard
+    )
 
-    print("Zara Bot is running successfully...")
-    updater.start_polling()
-    updater.idle()
+# Back button callback handler
+@app.on_callback_query(filters.regex("back_to_home"))
+async def back_to_home(client: Client, callback_query: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
+        ]
+    )
+    await callback_query.message.edit_text(
+        "Hello! I am **Zara**, your personal assistant bot.",
+        reply_markup=keyboard
+    )
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    print("Zara Bot is starting...")
+    app.run()
+
