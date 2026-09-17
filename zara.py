@@ -1,12 +1,72 @@
 import os
-from flask import Flask
+import logging
+import asyncio
+from datetime import datetime
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-app = Flask(__name__)
+# உனது பாட் டோக்கன்
+TOKEN = "8607486883:AAEUhuhrHzzNY4-0hyrxgGekiNa70MXVTI4"
 
-@app.route('/')
-def home():
-    return "Zara Bot is alive and running!"
+# லாக்கிங் செட்டப்
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# /start கமெண்ட் மற்றும் கீழே Settings பட்டன் மட்டும்
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_text = (
+        "Hey there! My name is Zara - I'm here to help you manage your groups! "
+        "Use /help to find out how to use me to my full potential.\n\n"
+        "Join my news channel to get information on all the latest updates.\n\n"
+        "Check /privacy to view the privacy policy, and interact with your data."
+    )
+    keyboard = [
+        [InlineKeyboardButton("Add me to your chat!", url=f"https://t.me/{context.bot.username}?startgroup=true")],
+        [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(start_text, reply_markup=reply_markup)
+
+# இப்போதைக்கு Settings பட்டனை அழுத்தினால் சும்மா ஒரு தகவல் காட்டுவது (உள்ளே இன்னும் எதுவும் இல்லை)
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "open_settings":
+        settings_text = "⚙️ **Settings Menu:**\n\n(Filters and other settings will be added here step by step!)"
+        keyboard = [
+            [InlineKeyboardButton("« Back", callback_data="back_to_start")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.edit_text(settings_text, reply_markup=reply_markup, parse_mode="Markdown")
+
+    elif query.data == "back_to_start":
+        start_text = (
+            "Hey there! My name is Zara - I'm here to help you manage your groups! "
+            "Use /help to find out how to use me to my full potential.\n\n"
+            "Join my news channel to get information on all the latest updates.\n\n"
+            "Check /privacy to view the privacy policy, and interact with your data."
+        )
+        keyboard = [
+            [InlineKeyboardButton("Add me to your chat!", url=f"https://t.me/{context.bot.username}?startgroup=true")],
+            [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.edit_text(start_text, reply_markup=reply_markup)
+
+def main():
+    # பாட் அப்ளிகேஷன் உருவாக்கம்
+    application = ApplicationBuilder().token(TOKEN).build()
+
+    # ஹேண்ட்லர்கள் இணைப்பு
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button_callback))
+
+    print("Zara Bot is running cleanly...")
+    application.run_polling()
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    main()
