@@ -4,10 +4,8 @@ from flask import Flask
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes
 
-# Telegram Bot Token
 BOT_TOKEN = "8607486883:AAEUhuhrHzzNY4-0hyrxgGekiNa70MXVTI4"
 
-# Flask Web Server setup for Render (Web Service keep-alive)
 app_flask = Flask(__name__)
 
 @app_flask.route('/')
@@ -18,7 +16,6 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app_flask.run(host="0.0.0.0", port=port)
 
-# Telegram Bot Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("Settings", callback_data="open_settings")]
@@ -64,24 +61,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 def main():
-    # Start Flask in a background thread so Render port binding succeeds
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
-    print("Flask server started in background thread.")
 
-    # Build Telegram Application
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CallbackQueryHandler(button_callback))
 
-    print("Zara Telegram Bot is starting...")
     application.run_polling()
 
 if __name__ == "__main__":
     main()
-
-
-
