@@ -1,7 +1,4 @@
-import os
 import logging
-import asyncio
-from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
@@ -13,9 +10,8 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
     level=logging.INFO
 )
-logger = logging.getLogger(__name__)
 
-# /start கமெண்ட் மற்றும் கீழே Settings பட்டன் மட்டும்
+# /start கமெண்ட் மற்றும் கீழே Settings பட்டன்
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_text = (
         "Hey there! My name is Zara - I'm here to help you manage your groups! "
@@ -30,7 +26,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(start_text, reply_markup=reply_markup)
 
-# இப்போதைக்கு Settings பட்டனை அழுத்தினால் சும்மா ஒரு தகவல் காட்டுவது (உள்ளே இன்னும் எதுவும் இல்லை)
+# Settings பட்டனை கையாளுதல்
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -65,8 +61,9 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_callback))
 
-    print("Zara Bot is running cleanly...")
+    print("Zara Bot is running successfully...")
     application.run_polling()
 
 if __name__ == '__main__':
     main()
+
