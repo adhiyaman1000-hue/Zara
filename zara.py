@@ -1,81 +1,87 @@
 import os
-import asyncio
-from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+import threading
+from flask import Flask
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes
 
-# Telegram API credentials and Bot Token
-API_ID = 6723238
-API_HASH = "9b626456073105574581f3b3d4f40f3b"
+# Telegram Bot Token
 BOT_TOKEN = "8607486883:AAEUhuhrHzzNY4-0hyrxgGekiNa70MXVTI4"
 
-# Pyrogram Client setup
-app = Client(
-    "ZaraBot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
-)
+# Flask Web Server setup for Render (Web Service keep-alive)
+app_flask = Flask(__name__)
 
-# Start command handler
-@app.on_message(filters.command("start"))
-async def start_command(client: Client, message: Message):
-    # Settings button creation
-    keyboard = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("Settings", callback_data="open_settings")]
-        ]
-    )
-    await message.reply_text(
+@app_flask.route('/')
+def home():
+    return "Zara Bot is active and running!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app_flask.run(host="0.0.0.0", port=port)
+
+# Telegram Bot Handlers
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("Settings", callback_data="open_settings")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
         "Hello! I am **Zara**, your advanced assistant bot.",
-        reply_markup=keyboard
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
     )
 
-# Help command handler
-@app.on_message(filters.command("help"))
-async def help_command(client: Client, message: Message):
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "**Zara Bot Help Menu**\n\n"
         "• /start - Start the bot\n"
         "• /help - Get help details\n"
     )
-    await message.reply_text(help_text)
+    await update.message.reply_text(help_text, parse_mode="Markdown")
 
-# Settings button callback handler
-@app.on_callback_query(filters.regex("open_settings"))
-async def settings_menu(client: Client, callback_query: CallbackQuery):
-    back_keyboard = InlineKeyboardMarkup(
-        [
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "open_settings":
+        back_keyboard = [
             [InlineKeyboardButton("Back", callback_data="back_to_home")]
         ]
-    )
-    await callback_query.message.edit_text(
-        "**Zara Settings Menu**\n\n"
-        "Advanced configurations will be added here soon.",
-        reply_markup=back_keyboard
-    )
-
-# Back button callback handler
-@app.on_callback_query(filters.regex("back_to_home"))
-async def back_to_home(client: Client, callback_query: CallbackQuery):
-    keyboard = InlineKeyboardMarkup(
-        [
+        reply_markup = InlineKeyboardMarkup(back_keyboard)
+        await query.edit_message_text(
+            "**Zara Settings Menu**\n\nAdvanced configurations will be added here soon.",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+    elif query.data == "back_to_home":
+        keyboard = [
             [InlineKeyboardButton("Settings", callback_data="open_settings")]
         ]
-    )
-    await callback_query.message.edit_text(
-        "Hello! I am **Zara**, your advanced assistant bot.",
-        reply_markup=keyboard
-    )
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(
+            "Hello! I am **Zara**, your advanced assistant bot.",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+
+def main():
+    # Start Flask in a background thread so Render port binding succeeds
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    print("Flask server started in background thread.")
+
+    # Build Telegram Application
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CallbackQueryHandler(button_callback))
+
+    print("Zara Telegram Bot is starting...")
+    application.run_polling()
 
 if __name__ == "__main__":
-    print("Zara Bot is starting...")
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    app.run()
+    main()
 
 
 
