@@ -1,4 +1,5 @@
 import os
+import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
@@ -21,11 +22,11 @@ async def start_command(client: Client, message: Message):
     # Settings button creation
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
+            [InlineKeyboardButton("Settings", callback_data="open_settings")]
         ]
     )
     await message.reply_text(
-        "Hello! I am **Zara**, your personal assistant bot.",
+        "Hello! I am **Zara**, your advanced assistant bot.",
         reply_markup=keyboard
     )
 
@@ -33,7 +34,7 @@ async def start_command(client: Client, message: Message):
 @app.on_message(filters.command("help"))
 async def help_command(client: Client, message: Message):
     help_text = (
-        "🛠️ **Zara Bot Help Menu**\n\n"
+        "**Zara Bot Help Menu**\n\n"
         "• /start - Start the bot\n"
         "• /help - Get help details\n"
     )
@@ -44,12 +45,12 @@ async def help_command(client: Client, message: Message):
 async def settings_menu(client: Client, callback_query: CallbackQuery):
     back_keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🔙 Back", callback_data="back_to_home")]
+            [InlineKeyboardButton("Back", callback_data="back_to_home")]
         ]
     )
     await callback_query.message.edit_text(
-        "⚙️ **Zara Settings Menu**\n\n"
-        "Here you can manage your bot settings.",
+        "**Zara Settings Menu**\n\n"
+        "Advanced configurations will be added here soon.",
         reply_markup=back_keyboard
     )
 
@@ -58,16 +59,23 @@ async def settings_menu(client: Client, callback_query: CallbackQuery):
 async def back_to_home(client: Client, callback_query: CallbackQuery):
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
+            [InlineKeyboardButton("Settings", callback_data="open_settings")]
         ]
     )
     await callback_query.message.edit_text(
-        "Hello! I am **Zara**, your personal assistant bot.",
+        "Hello! I am **Zara**, your advanced assistant bot.",
         reply_markup=keyboard
     )
 
 if __name__ == "__main__":
     print("Zara Bot is starting...")
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
     app.run()
+
 
 
