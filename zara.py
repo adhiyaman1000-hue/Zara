@@ -51,10 +51,9 @@ def button_callback(update: Update, context: CallbackContext):
             [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        query.message.edit_text(settings_text if 'settings_text' in locals() else start_text, reply_markup=reply_markup)
+        query.message.edit_text(start_text, reply_markup=reply_markup)
 
 def main():
-    # பாட் அப்ளிகேஷன் உருவாக்கம் (Updater முறை - எரர் வராது)
     updater = Updater(TOKEN, use_context=True)
     dispatcher = updater.dispatcher
 
