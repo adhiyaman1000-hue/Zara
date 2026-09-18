@@ -13,6 +13,8 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+
+# அதிகாரப்பூர்வ Application முறையைப் பயன்படுத்துதல் (எந்த எரரும் வராது)
 telegram_app = Application.builder().token(TOKEN).build()
 
 async def setup_bot():
