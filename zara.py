@@ -1,140 +1,114 @@
 import os
-import logging
-import threading
-from flask import Flask
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, MessageHandler, ContextTypes, filters
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
-# Logging setup for debugging and error tracking
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-# Telegram Bot Token
+# Telegram API credentials and Bot Token
+API_ID = 6723238
+API_HASH = "9b626456073105574581f3b3d4f40f3b"
 BOT_TOKEN = "8607486883:AAEUhuhrHzzNY4-0hyrxgGekiNa70MXVTI4"
 
-# Dictionary to store filters (Keyword list -> Reply text)
-# இதில் பல வார்த்தைகளை சேமிக்கலாம். பத்தியில் இதில் உள்ள ஒரு வார்த்தை இருந்தாலும் ரிப்ளை செய்யும்.
+# Pyrogram Client setup
+app = Client(
+    "ZaraBot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
+)
+
+# ஃபில்டர் சேமிக்கப்படும் டேட்டாபேஸ்
 filter_database = {
     "hi": "Hello! How can I help you?",
-    "hello": "Hi there! Welcome to Zara Bot.",
-    "zara": "Yes, I am Zara! Your personal assistant.",
-    "help": "Type /help to see available commands.",
-    "python": "Python is a powerful programming language!"
+    "hello": "Hi there! Welcome to Zara Bot."
 }
 
-# Flask Web Server setup for Render (Keep-alive)
-app_flask = Flask(__name__)
-
-@app_flask.route('/')
-def home():
-    return "Zara Bot with Advanced Text Filters is active and running!"
-
-def run_flask():
-    port = int(os.environ.get("PORT", 8080))
-    app_flask.run(host="0.0.0.0", port=port)
-
-# /start command handler
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("Settings", callback_data="open_settings")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "Hello! I am **Zara**, your advanced filter assistant bot.",
-        reply_markup=reply_markup,
-        parse_mode="Markdown"
+# /start கட்டளை
+@app.on_message(filters.command("start"))
+async def start_command(client: Client, message: Message):
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Settings", callback_data="open_settings")]
+        ]
+    )
+    await message.reply_text(
+        "Hello! I am **Zara**, your advanced assistant bot.",
+        reply_markup=keyboard
     )
 
-# /help command handler
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# /help கட்டளை
+@app.on_message(filters.command("help"))
+async def help_command(client: Client, message: Message):
     help_text = (
         "**Zara Bot Help Menu**\n\n"
         "• /start - Start the bot\n"
-        "• /filter [keyword] [reply] - Set a custom filter\n"
         "• /help - Get help details\n"
     )
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+    await message.reply_text(help_text)
 
-# /filter command handler to add custom keywords dynamically
-async def set_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    if len(args) < 2:
-        await update.message.reply_text(
-            "⚠️ Usage format:\n`/filter keyword reply_message`\nExample: `/filter school I am studying in 11th standard`",
-            parse_mode="Markdown"
-        )
+# பத்தியில் வார்த்தை உள்ளதா என சோதித்து ரிப்ளை செய்ய
+@app.on_message(filters.text & ~filters.command)
+async def check_filters(client: Client, message: Message):
+    if not message.text:
         return
     
-    keyword = args[0].lower()
-    reply_message = " ".join(args[1:])
-    
-    filter_database[keyword] = reply_message
-    await update.message.reply_text(f"✅ Filter saved successfully for keyword: `{keyword}`", parse_mode="Markdown")
-
-# Advanced message handler: Checks if ANY word from the paragraph matches our filter list
-async def check_filters(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
-        return
-    
-    # User sent text (can be a full paragraph)
-    user_paragraph = update.message.text.lower()
-    
-    # Split the paragraph into individual words to check accurately
-    user_words = user_paragraph.split()
-    
-    # Check if any keyword in our database matches any word in the user's paragraph
+    user_paragraph = message.text.lower()
     for keyword, reply in filter_database.items():
-        if keyword in user_words or keyword in user_paragraph:
-            await update.message.reply_text(reply)
-            break  # Send only the first matching reply
+        if keyword in user_paragraph:
+            await message.reply_text(reply)
+            break
 
-# Settings callback handler
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    if query.data == "open_settings":
-        back_keyboard = [
+# Settings மெனுவை திறக்க
+@app.on_callback_query(filters.regex("open_settings"))
+async def settings_menu(client: Client, callback_query: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Filters", callback_data="open_filters_guide")],
             [InlineKeyboardButton("Back", callback_data="back_to_home")]
         ]
-        reply_markup = InlineKeyboardMarkup(back_keyboard)
-        await query.edit_message_text(
-            "**Zara Settings Menu**\n\nActive Filters Count: " + str(len(filter_database)),
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-    elif query.data == "back_to_home":
-        keyboard = [
+    )
+    await callback_query.message.edit_text(
+        "**Zara Settings Menu**\n\n"
+        "Active Filters Count: " + str(len(filter_database)) + "\n"
+        "Click the button below to view filter instructions.",
+        reply_markup=keyboard
+    )
+
+# Filters பட்டனை அழுத்தியவுடன் காட்டும் வழிமுறைகள் (Instructions)
+@app.on_callback_query(filters.regex("open_filters_guide"))
+async def filters_guide(client: Client, callback_query: CallbackQuery):
+    back_keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Back to Settings", callback_data="open_settings")]
+        ]
+    )
+    guide_text = (
+        "⚙️ **Filter Management Guide**\n\n"
+        "1. **How to Save a Filter:**\n"
+        "Use the command: `/filter keyword your_reply_message`\n\n"
+        "2. **How to Delete a Filter:**\n"
+        "Use the command: `/delete keyword`\n\n"
+        "3. **How to Delete All Filters:**\n"
+        "Use the command: `/deleteall`\n\n"
+        "4. **Usage Instructions:**\n"
+        "If any word from your saved filter list appears in a sent paragraph, the bot will automatically reply!"
+    )
+    await callback_query.message.edit_text(
+        guide_text,
+        reply_markup=back_keyboard
+    )
+
+# முகப்பு பக்கத்திற்குத் திரும்ப
+@app.on_callback_query(filters.regex("back_to_home"))
+async def back_to_home(client: Client, callback_query: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(
+        [
             [InlineKeyboardButton("Settings", callback_data="open_settings")]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(
-            "Hello! I am **Zara**, your advanced filter assistant bot.",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-
-def main():
-    # Start Flask server in a separate background thread
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    logger.info("Flask server started in background thread.")
-
-    # Build Telegram Application
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    # Register handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("filter", set_filter))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), check_filters))
-    application.add_handler(CallbackQueryHandler(button_callback))
-
-    logger.info("Zara Telegram Bot is starting polling...")
-    application.run_polling()
+    )
+    await callback_query.message.edit_text(
+        "Hello! I am **Zara**, your advanced assistant bot.",
+        reply_markup=keyboard
+    )
 
 if __name__ == "__main__":
-    main()
+    print("Zara Bot is starting...")
+    app.run()
