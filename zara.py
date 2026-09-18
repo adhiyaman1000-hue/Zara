@@ -5,25 +5,19 @@ from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# உனது பாட் டோக்கன்
 TOKEN = "8607486883:AAEUhuhrHzzNY4-0hyrxgGekiNa70MXVTI4"
 
-# லாக்கிங் செட்டப்
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
     level=logging.INFO
 )
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-
-# டெலிகிராம் அப்ளிகேஷன் உருவாக்கம்
 telegram_app = Application.builder().token(TOKEN).build()
 
 async def setup_bot():
     await telegram_app.initialize()
 
-# /start கமெண்ட் மற்றும் கீழே Settings பட்டன்
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_text = (
         "Hey there! My name is Zara - I'm here to help you manage your groups! "
@@ -38,7 +32,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(start_text, reply_markup=reply_markup)
 
-# பட்டன் கிளிக் கையாளுதல் (Settings மற்றும் Filters)
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -83,12 +76,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.edit_text(start_text, reply_markup=reply_markup)
 
-# பிளாஸ்க் ஹோம் ரூட்
 @app.route('/')
 def home():
     return "Zara Bot is running successfully with Flask!"
 
-# டெலிகிராம் வெப்ஹுக் ரூட்
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
     if request.method == "POST":
@@ -105,7 +96,6 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(setup_bot())
     
-    # ஹேண்ட்லர்கள் இணைப்பு
     telegram_app.add_handler(CommandHandler("start", start))
     telegram_app.add_handler(CallbackQueryHandler(button_callback))
     
