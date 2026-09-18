@@ -1,363 +1,113 @@
 import os
+import logging
 import asyncio
+from flask import Flask, request
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-from pyrogram import Client, filters, idle
-from pyrogram.types import (
-    Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    CallbackQuery
+# உனது பாட் டோக்கன்
+TOKEN = "8607486883:AAEUhuhrHzzNY4-0hyrxgGekiNa70MXVTI4"
+
+# லாக்கிங் செட்டப்
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
+    level=logging.INFO
 )
+logger = logging.getLogger(__name__)
 
+app = Flask(__name__)
 
-# ==========================================
-# FILTER DATABASE
-# ==========================================
+# டெலிகிராம் அப்ளிகேஷன் உருவாக்கம்
+telegram_app = Application.builder().token(TOKEN).build()
 
-filter_database = {
-    "hi": "Hello! How can I help you?",
-    "hello": "Hi there! Welcome to Zara Bot."
-}
+async def setup_bot():
+    await telegram_app.initialize()
 
-
-# ==========================================
-# MAIN FUNCTION
-# ==========================================
-
-async def main():
-
-    # --------------------------------------
-    # Telegram credentials
-    # --------------------------------------
-
-    API_ID = int(os.environ["API_ID"])
-    API_HASH = os.environ["API_HASH"]
-    BOT_TOKEN = os.environ["BOT_TOKEN"]
-
-
-    # --------------------------------------
-    # IMPORTANT:
-    # Create Pyrogram Client INSIDE
-    # the running asyncio event loop
-    # --------------------------------------
-
-    app = Client(
-        "ZaraBot",
-        api_id=API_ID,
-        api_hash=API_HASH,
-        bot_token=BOT_TOKEN
+# /start கமெண்ட் மற்றும் கீழே Settings பட்டன்
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_text = (
+        "Hey there! My name is Zara - I'm here to help you manage your groups! "
+        "Use /help to find out how to use me to my full potential.\n\n"
+        "Join my news channel to get information on all the latest updates.\n\n"
+        "Check /privacy to view the privacy policy, and interact with your data."
     )
+    keyboard = [
+        [InlineKeyboardButton("Add me to your chat!", url=f"https://t.me/{context.bot.username}?startgroup=true")],
+        [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(start_text, reply_markup=reply_markup)
 
+# பட்டன் கிளிக் கையாளுதல் (Settings மற்றும் Filters)
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
-    # ======================================
-    # START COMMAND
-    # ======================================
+    if query.data == "open_settings":
+        settings_text = "⚙️ **Settings Menu:**\n\nChoose an option below to configure your group:"
+        keyboard = [
+            [InlineKeyboardButton("📁 Filters", callback_data="menu_filters")],
+            [InlineKeyboardButton("« Back", callback_data="back_to_start")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.edit_text(settings_text, reply_markup=reply_markup, parse_mode="Markdown")
 
-    @app.on_message(filters.command("start"))
-    async def start_command(client: Client, message: Message):
-
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "⚙️ Settings",
-                        callback_data="open_settings"
-                    )
-                ]
-            ]
+    elif query.data == "menu_filters":
+        filters_text = (
+            "📁 **Filters Management:**\n\n"
+            "Filters allow the bot to respond automatically when specific keywords are sent in the group.\n\n"
+            "🔹 **How to set a filter:**\n"
+            "Send `/save <keyword> <reply message>` in your group to save a new filter.\n"
+            "🔹 **How to check filters:**\n"
+            "Send `/filters` to view all saved filters in the group.\n"
+            "🔹 **How to delete a filter:**\n"
+            "Send `/stop <keyword>` to remove a specific filter."
         )
+        keyboard = [
+            [InlineKeyboardButton("« Back to Settings", callback_data="open_settings")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.edit_text(filters_text, reply_markup=reply_markup, parse_mode="Markdown")
 
-        await message.reply_text(
-            "Hello! I am **Zara**, your advanced assistant bot.",
-            reply_markup=keyboard
+    elif query.data == "back_to_start":
+        start_text = (
+            "Hey there! My name is Zara - I'm here to help you manage your groups! "
+            "Use /help to find out how to use me to my full potential.\n\n"
+            "Join my news channel to get information on all the latest updates.\n\n"
+            "Check /privacy to view the privacy policy, and interact with your data."
         )
-
-
-    # ======================================
-    # HELP COMMAND
-    # ======================================
-
-    @app.on_message(filters.command("help"))
-    async def help_command(client: Client, message: Message):
-
-        help_text = (
-            "**Zara Bot Help Menu**\n\n"
-            "• /start - Start the bot\n"
-            "• /help - Get help details\n"
-            "• /filter - Add a filter\n"
-            "• /delete - Delete a filter\n"
-            "• /deleteall - Delete all filters\n"
-        )
-
-        await message.reply_text(help_text)
-
-
-    # ======================================
-    # ADD FILTER
-    # ======================================
-
-    @app.on_message(filters.command("filter"))
-    async def add_filter(client: Client, message: Message):
-
-        if len(message.command) < 3:
-
-            await message.reply_text(
-                "❌ Correct format:\n\n"
-                "`/filter keyword your reply message`"
-            )
-
-            return
-
-
-        keyword = message.command[1].lower()
-
-        reply_text = " ".join(message.command[2:])
-
-        filter_database[keyword] = reply_text
-
-
-        await message.reply_text(
-            "✅ **Filter added successfully!**\n\n"
-            f"**Keyword:** `{keyword}`\n"
-            f"**Reply:** {reply_text}"
-        )
-
-
-    # ======================================
-    # DELETE FILTER
-    # ======================================
-
-    @app.on_message(filters.command("delete"))
-    async def delete_filter(client: Client, message: Message):
-
-        if len(message.command) < 2:
-
-            await message.reply_text(
-                "❌ Correct format:\n\n"
-                "`/delete keyword`"
-            )
-
-            return
-
-
-        keyword = message.command[1].lower()
-
-
-        if keyword not in filter_database:
-
-            await message.reply_text(
-                f"❌ Filter `{keyword}` was not found."
-            )
-
-            return
-
-
-        del filter_database[keyword]
-
-
-        await message.reply_text(
-            f"✅ Filter `{keyword}` deleted successfully."
-        )
-
-
-    # ======================================
-    # DELETE ALL FILTERS
-    # ======================================
-
-    @app.on_message(filters.command("deleteall"))
-    async def delete_all_filters(
-        client: Client,
-        message: Message
-    ):
-
-        filter_database.clear()
-
-        await message.reply_text(
-            "🗑️ All filters have been deleted successfully."
-        )
-
-
-    # ======================================
-    # CHECK SAVED FILTERS
-    # ======================================
-
-    @app.on_message(
-        filters.text & ~filters.command()
-    )
-    async def check_filters(
-        client: Client,
-        message: Message
-    ):
-
-        if not message.text:
-            return
-
-
-        user_paragraph = message.text.lower()
-
-
-        for keyword, reply in filter_database.items():
-
-            if keyword in user_paragraph:
-
-                await message.reply_text(reply)
-
-                break
-
-
-    # ======================================
-    # SETTINGS MENU
-    # ======================================
-
-    @app.on_callback_query(
-        filters.regex("^open_settings$")
-    )
-    async def settings_menu(
-        client: Client,
-        callback_query: CallbackQuery
-    ):
-
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "📋 Filters",
-                        callback_data="open_filters_guide"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "🔙 Back",
-                        callback_data="back_to_home"
-                    )
-                ]
-            ]
-        )
-
-
-        await callback_query.message.edit_text(
-            "**Zara Settings Menu**\n\n"
-            f"Active Filters Count: {len(filter_database)}\n\n"
-            "Click the button below to view filter instructions.",
-            reply_markup=keyboard
-        )
-
-
-        await callback_query.answer()
-
-
-    # ======================================
-    # FILTER GUIDE
-    # ======================================
-
-    @app.on_callback_query(
-        filters.regex("^open_filters_guide$")
-    )
-    async def filters_guide(
-        client: Client,
-        callback_query: CallbackQuery
-    ):
-
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "🔙 Back to Settings",
-                        callback_data="open_settings"
-                    )
-                ]
-            ]
-        )
-
-
-        guide_text = (
-            "⚙️ **Filter Management Guide**\n\n"
-
-            "1. **How to Save a Filter:**\n"
-            "`/filter keyword your_reply_message`\n\n"
-
-            "2. **How to Delete a Filter:**\n"
-            "`/delete keyword`\n\n"
-
-            "3. **How to Delete All Filters:**\n"
-            "`/deleteall`\n\n"
-
-            "4. **Usage Instructions:**\n"
-            "If any word from your saved filter list appears "
-            "in a sent paragraph, the bot will automatically reply."
-        )
-
-
-        await callback_query.message.edit_text(
-            guide_text,
-            reply_markup=keyboard
-        )
-
-
-        await callback_query.answer()
-
-
-    # ======================================
-    # BACK TO HOME
-    # ======================================
-
-    @app.on_callback_query(
-        filters.regex("^back_to_home$")
-    )
-    async def back_to_home(
-        client: Client,
-        callback_query: CallbackQuery
-    ):
-
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "⚙️ Settings",
-                        callback_data="open_settings"
-                    )
-                ]
-            ]
-        )
-
-
-        await callback_query.message.edit_text(
-            "Hello! I am **Zara**, your advanced assistant bot.",
-            reply_markup=keyboard
-        )
-
-
-        await callback_query.answer()
-
-
-    # ======================================
-    # START BOT
-    # ======================================
-
-    print("Zara Bot is starting...")
-
-
-    await app.start()
-
-
-    print("Zara Bot is running successfully!")
-
-
-    # Keep bot running
-    await idle()
-
-
-    # Stop bot when Render shuts it down
-    await app.stop()
-
-
-    print("Zara Bot stopped.")
-
-
-# ==========================================
-# RUN
-# ==========================================
-
-if __name__ == "__main__":
-
-    asyncio.run(main())
+        keyboard = [
+            [InlineKeyboardButton("Add me to your chat!", url=f"https://t.me/{context.bot.username}?startgroup=true")],
+            [InlineKeyboardButton("⚙️ Settings", callback_data="open_settings")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.edit_text(start_text, reply_markup=reply_markup)
+
+# பிளாஸ்க் ஹோம் ரூட்
+@app.route('/')
+def home():
+    return "Zara Bot is running successfully with Flask!"
+
+# டெலிகிராம் வெப்ஹுக் ரூட்
+@app.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
+    if request.method == "POST":
+        json_data = request.get_json(force=True)
+        update = Update.de_json(json_data, telegram_app.bot)
+        
+        async def process():
+            await telegram_app.process_update(update)
+
+        asyncio.run(process())
+    return "OK"
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(setup_bot())
+    
+    # ஹேண்ட்லர்கள் இணைப்பு
+    telegram_app.add_handler(CommandHandler("start", start))
+    telegram_app.add_handler(CallbackQueryHandler(button_callback))
+    
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
