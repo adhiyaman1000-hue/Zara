@@ -1,5 +1,7 @@
-Pyrogram==2.0.106
-TgCrypto
+python-telegram-bot==20.8
+flask==3.0.2
+requests==2.31.0
+
 
 
 
